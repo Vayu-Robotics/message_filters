@@ -293,6 +293,40 @@ public:
   }
 
   /**
+   * \brief Subscribe to a topic with unique pointer
+   *
+   * If this Subscriber is already subscribed to a topic, this function will first unsubscribe.
+   *
+   * \param node The rclcpp::Node to use to subscribe.
+   * \param topic The topic to subscribe to.
+   * \param qos The rmw qos profile to use to subscribe
+   * \param options The subscription options to use to subscribe.
+   */
+  void subscribe_zero_copy(
+    NodeType * node,
+    const std::string& topic,
+    const rmw_qos_profile_t qos,
+    rclcpp::SubscriptionOptions options)
+  {
+    unsubscribe();
+
+    if (!topic.empty())
+    {
+      topic_ = topic;
+      rclcpp::QoS rclcpp_qos(rclcpp::QoSInitialization::from_rmw(qos));
+      rclcpp_qos.get_rmw_qos_profile() = qos;
+      qos_ = qos;
+      options_ = options;
+      sub_ = node->template create_subscription<M>(topic, rclcpp_qos,
+               [this](std::unique_ptr<M> msg) {
+                 this->cb(EventType(std::move(msg)));
+               }, options);
+
+      node_raw_ = node;
+    }
+  }
+
+  /**
    * \brief Re-subscribe to a topic.  Only works if this subscriber has previously been subscribed to a topic.
    */
   void subscribe() override
